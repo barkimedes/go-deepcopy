@@ -4,8 +4,6 @@ import (
 	"fmt"
 	. "reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func ExampleAnything() {
@@ -69,12 +67,14 @@ func ExampleMap() {
 func TestInterface(t *testing.T) {
 	x := []interface{}{nil}
 	y := MustAnything(x).([]interface{})
-	assert.Equal(t, x, y)
-	assert.Equal(t, 1, len(y))
-
+	if !DeepEqual(x, y) || len(y) != 1 {
+		t.Errorf("expect %v == %v; y had length %v (expected 1)", x, y, len(y))
+	}
 	var a interface{}
 	b := MustAnything(a)
-	assert.Equal(t, a, b)
+	if a != b {
+		t.Errorf("expected %v == %v", a, b)
+	}
 }
 
 func ExampleAvoidInfiniteLoops() {
@@ -103,14 +103,23 @@ func TestUnsupportedKind(t *testing.T) {
 
 	for _, test := range tests {
 		y, err := Anything(test)
-		assert.Nil(t, y)
-		assert.Error(t, err)
+		if y != nil {
+			t.Errorf("expected %v to be nil", y)
+		}
+		if err == nil {
+			t.Errorf("expected err to not be nil")
+		}
 	}
 }
 
 func TestUnsupportedKindPanicsOnMust(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected a panic; didn't get one")
+		}
+	}()
 	x := func() {}
-	assert.Panics(t, func() { MustAnything(x) })
+	MustAnything(x)
 }
 
 func TestMismatchedTypesFail(t *testing.T) {
@@ -133,8 +142,13 @@ func TestMismatchedTypesFail(t *testing.T) {
 				continue
 			}
 			actual, err := copier(test.input, nil)
-			assert.Nil(t, actual, "%v attempted value %v as %v; should be nil value, got %v", test.kind, test.input, kind, actual)
-			assert.Error(t, err, "%v attempted value %v as %v; should have gotten an error", test.kind, test.input, kind)
+			if actual != nil {
+
+				t.Errorf("%v attempted value %v as %v; should be nil value, got %v", test.kind, test.input, kind, actual)
+			}
+			if err == nil {
+				t.Errorf("%v attempted value %v as %v; should have gotten an error", test.kind, test.input, kind)
+			}
 		}
 	}
 }
