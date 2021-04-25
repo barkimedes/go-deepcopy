@@ -38,24 +38,24 @@ type Foo struct {
 	Bar int
 }
 
-func ExampleMap() {
+func TestExampleMap(t *testing.T) {
 	x := map[string]*Foo{
-		"foo": &Foo{Bar: 1},
-		"bar": &Foo{Bar: 2},
+		"foo": {Bar: 1},
+		"bar": {Bar: 2},
 	}
+
 	y := MustAnything(x).(map[string]*Foo)
 	for _, k := range []string{"foo", "bar"} { // to ensure consistent order
-		fmt.Printf("x[\"%v\"] = y[\"%v\"]: %v\n", k, k, x[k] == y[k])
-		fmt.Printf("x[\"%v\"].Foo = y[\"%v\"].Foo: %v\n", k, k, x[k].Foo == y[k].Foo)
-		fmt.Printf("x[\"%v\"].Bar = y[\"%v\"].Bar: %v\n", k, k, x[k].Bar == y[k].Bar)
+		if x[k] == y[k] {
+			t.Errorf("x[\"%v\"] == y[\"%v\"]: want '%v' got '%v'", k, k, false, x[k] == y[k])
+		}
+		if x[k].Foo == y[k].Foo {
+			t.Errorf("x[\"%v\"].Foo == y[\"%v\"].Foo: want '%v' got '%v'", k, k, false, x[k].Foo == y[k].Foo)
+		}
+		if x[k].Bar != y[k].Bar {
+			t.Errorf("x[\"%v\"].Bar == y[\"%v\"].Bar: want '%v' got '%v'", k, k, true, x[k].Bar == y[k].Bar)
+		}
 	}
-	// Output:
-	// x["foo"] = y["foo"]: false
-	// x["foo"].Foo = y["foo"].Foo: false
-	// x["foo"].Bar = y["foo"].Bar: true
-	// x["bar"] = y["bar"]: false
-	// x["bar"].Foo = y["bar"].Foo: false
-	// x["bar"].Bar = y["bar"].Bar: true
 }
 
 func TestInterface(t *testing.T) {
