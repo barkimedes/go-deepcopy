@@ -1,7 +1,6 @@
 package deepcopy
 
 import (
-	"fmt"
 	. "reflect"
 	"testing"
 )
@@ -71,19 +70,22 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-func ExampleAvoidInfiniteLoops() {
+func TestExampleAvoidInfiniteLoops(t *testing.T) {
 	x := &Foo{
 		Bar: 4,
 	}
 	x.Foo = x
 	y := MustAnything(x).(*Foo)
-	fmt.Printf("x == y: %v\n", x == y)
-	fmt.Printf("x == x.Foo: %v\n", x == x.Foo)
-	fmt.Printf("y == y.Foo: %v\n", y == y.Foo)
-	// Output:
-	// x == y: false
-	// x == x.Foo: true
-	// y == y.Foo: true
+
+	if x == y {
+		t.Errorf("x == y: want '%v' got '%v'", false, x == y)
+	}
+	if x != x.Foo {
+		t.Errorf("x == x.Foo: want '%v' got '%v'", true, x == x.Foo)
+	}
+	if y != y.Foo {
+		t.Errorf("y == y.Foo: want '%v' got '%v'", true, y == y.Foo)
+	}
 }
 
 func TestUnsupportedKind(t *testing.T) {
