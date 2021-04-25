@@ -3,6 +3,7 @@ package deepcopy
 import (
 	. "reflect"
 	"testing"
+	"testing/quick"
 )
 
 func TestExampleAnything(t *testing.T) {
@@ -146,5 +147,53 @@ func TestMismatchedTypesFail(t *testing.T) {
 				t.Errorf("%v attempted value %v as %v; should have gotten an error", test.kind, test.input, kind)
 			}
 		}
+	}
+}
+
+type basicTypes struct {
+	B    bool
+	I    int
+	I8   int8
+	I16  int16
+	I32  int32
+	I64  int64
+	U    uint
+	U8   uint8
+	U16  uint16
+	U32  uint32
+	U64  uint64
+	Uptr uintptr
+	F32  float32
+	F64  float64
+	C64  complex64
+	C128 complex128
+}
+
+type supportedTypesExceptPointers struct {
+	St  basicTypes
+	A1  [4]string
+	A2  [4][4][4][4][4]string
+	A3  [4][]int
+	M1  map[string]string
+	M2  map[int][]string
+	M3  map[string][4]string
+	M4  map[complex128][][][][]complex64
+	M5  map[string]basicTypes
+	M6  map[basicTypes]int
+	Sl1 []string
+	Sl2 [][][][]complex128
+	Sl3 []basicTypes
+	Sl4 []byte
+}
+
+func TestMustAnythingSupportedTypesExceptPointers(t *testing.T) {
+	f := func(x supportedTypesExceptPointers) bool {
+		y := MustAnything(x)
+		return DeepEqual(x, y)
+	}
+	if err := quick.Check(f, &quick.Config{
+		MaxCount: 1000,
+	}); err != nil {
+		t.Error(err)
 	}
 }
