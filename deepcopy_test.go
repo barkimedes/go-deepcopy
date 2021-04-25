@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func ExampleAnything() {
+func TestExampleAnything(t *testing.T) {
 	tests := []interface{}{
 		`"Now cut that out!"`,
 		39,
@@ -27,16 +27,10 @@ func ExampleAnything() {
 
 	for _, expected := range tests {
 		actual := MustAnything(expected)
-		fmt.Println(actual)
+		if !DeepEqual(expected, actual) {
+			t.Errorf("want '%v', got '%v'", expected, actual)
+		}
 	}
-	// Output:
-	// "Now cut that out!"
-	// 39
-	// true
-	// false
-	// 2.14
-	// [Phil Harris Rochester van Jones Mary Livingstone Dennis Day]
-	// [Jell-O Grape-Nuts]
 }
 
 type Foo struct {
