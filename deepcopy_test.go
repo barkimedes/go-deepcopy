@@ -152,3 +152,30 @@ func TestMismatchedTypesFail(t *testing.T) {
 		}
 	}
 }
+
+func TestTwoNils(t *testing.T) {
+	type Foo struct {
+		A int
+	}
+	type Bar struct {
+		B int
+	}
+	type FooBar struct {
+		Foo *Foo
+		Bar *Bar
+		Foo2 *Foo
+		Bar2 *Bar
+	}
+
+	src := &FooBar{
+		Foo2: &Foo{1},
+		Bar2: &Bar{2},
+	}
+
+	dst := MustAnything(src)
+
+	if !DeepEqual(src, dst) {
+		t.Errorf("expect %v == %v; ", src, dst)
+	}
+
+}
