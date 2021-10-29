@@ -145,6 +145,8 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 		if iv.IsValid() {
 			dc.Elem().Set(ValueOf(item))
 		}
+	} else {
+		return nil, nil
 	}
 	return dc.Interface(), nil
 }
