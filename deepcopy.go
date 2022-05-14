@@ -129,6 +129,12 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	if v.Kind() != Ptr {
 		return nil, fmt.Errorf("must pass a value with kind of Ptr; got %v", v.Kind())
 	}
+
+	if v.IsNil() {
+		t := TypeOf(x)
+		return Zero(t).Interface(),nil
+	}
+
 	addr := v.Pointer()
 	if dc, ok := ptrs[addr]; ok {
 		return dc, nil
@@ -136,16 +142,16 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	t := TypeOf(x)
 	dc := New(t.Elem())
 	ptrs[addr] = dc.Interface()
-	if !v.IsNil() {
-		item, err := _anything(v.Elem().Interface(), ptrs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
-		}
-		iv := ValueOf(item)
-		if iv.IsValid() {
-			dc.Elem().Set(ValueOf(item))
-		}
+	
+	item, err := _anything(v.Elem().Interface(), ptrs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
 	}
+	iv := ValueOf(item)
+	if iv.IsValid() {
+		dc.Elem().Set(ValueOf(item))
+	}
+	
 	return dc.Interface(), nil
 }
 
