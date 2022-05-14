@@ -1,12 +1,12 @@
 package deepcopy
 
 import (
-	"fmt"
 	. "reflect"
 	"testing"
+	"testing/quick"
 )
 
-func ExampleAnything() {
+func TestExampleAnything(t *testing.T) {
 	tests := []interface{}{
 		`"Now cut that out!"`,
 		39,
@@ -27,16 +27,10 @@ func ExampleAnything() {
 
 	for _, expected := range tests {
 		actual := MustAnything(expected)
-		fmt.Println(actual)
+		if !DeepEqual(expected, actual) {
+			t.Errorf("want '%v', got '%v'", expected, actual)
+		}
 	}
-	// Output:
-	// "Now cut that out!"
-	// 39
-	// true
-	// false
-	// 2.14
-	// [Phil Harris Rochester van Jones Mary Livingstone Dennis Day]
-	// [Jell-O Grape-Nuts]
 }
 
 type Foo struct {
@@ -44,24 +38,24 @@ type Foo struct {
 	Bar int
 }
 
-func ExampleMap() {
+func TestExampleMap(t *testing.T) {
 	x := map[string]*Foo{
-		"foo": &Foo{Bar: 1},
-		"bar": &Foo{Bar: 2},
+		"foo": {Bar: 1},
+		"bar": {Bar: 2},
 	}
+
 	y := MustAnything(x).(map[string]*Foo)
 	for _, k := range []string{"foo", "bar"} { // to ensure consistent order
-		fmt.Printf("x[\"%v\"] = y[\"%v\"]: %v\n", k, k, x[k] == y[k])
-		fmt.Printf("x[\"%v\"].Foo = y[\"%v\"].Foo: %v\n", k, k, x[k].Foo == y[k].Foo)
-		fmt.Printf("x[\"%v\"].Bar = y[\"%v\"].Bar: %v\n", k, k, x[k].Bar == y[k].Bar)
+		if x[k] == y[k] {
+			t.Errorf("x[\"%v\"] == y[\"%v\"]: want '%v' got '%v'", k, k, false, x[k] == y[k])
+		}
+		if x[k].Foo == y[k].Foo {
+			t.Errorf("x[\"%v\"].Foo == y[\"%v\"].Foo: want '%v' got '%v'", k, k, false, x[k].Foo == y[k].Foo)
+		}
+		if x[k].Bar != y[k].Bar {
+			t.Errorf("x[\"%v\"].Bar == y[\"%v\"].Bar: want '%v' got '%v'", k, k, true, x[k].Bar == y[k].Bar)
+		}
 	}
-	// Output:
-	// x["foo"] = y["foo"]: false
-	// x["foo"].Foo = y["foo"].Foo: false
-	// x["foo"].Bar = y["foo"].Bar: true
-	// x["bar"] = y["bar"]: false
-	// x["bar"].Foo = y["bar"].Foo: false
-	// x["bar"].Bar = y["bar"].Bar: true
 }
 
 func TestInterface(t *testing.T) {
@@ -77,19 +71,22 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-func ExampleAvoidInfiniteLoops() {
+func TestExampleAvoidInfiniteLoops(t *testing.T) {
 	x := &Foo{
 		Bar: 4,
 	}
 	x.Foo = x
 	y := MustAnything(x).(*Foo)
-	fmt.Printf("x == y: %v\n", x == y)
-	fmt.Printf("x == x.Foo: %v\n", x == x.Foo)
-	fmt.Printf("y == y.Foo: %v\n", y == y.Foo)
-	// Output:
-	// x == y: false
-	// x == x.Foo: true
-	// y == y.Foo: true
+
+	if x == y {
+		t.Errorf("x == y: want '%v' got '%v'", false, x == y)
+	}
+	if x != x.Foo {
+		t.Errorf("x == x.Foo: want '%v' got '%v'", true, x == x.Foo)
+	}
+	if y != y.Foo {
+		t.Errorf("y == y.Foo: want '%v' got '%v'", true, y == y.Foo)
+	}
 }
 
 func TestUnsupportedKind(t *testing.T) {
@@ -178,4 +175,52 @@ func TestTwoNils(t *testing.T) {
 		t.Errorf("expect %v == %v; ", src, dst)
 	}
 
+}
+
+type basicTypes struct {
+	B    bool
+	I    int
+	I8   int8
+	I16  int16
+	I32  int32
+	I64  int64
+	U    uint
+	U8   uint8
+	U16  uint16
+	U32  uint32
+	U64  uint64
+	Uptr uintptr
+	F32  float32
+	F64  float64
+	C64  complex64
+	C128 complex128
+}
+
+type supportedTypesExceptPointers struct {
+	St  basicTypes
+	A1  [4]string
+	A2  [4][4][4][4][4]string
+	A3  [4][]int
+	M1  map[string]string
+	M2  map[int][]string
+	M3  map[string][4]string
+	M4  map[complex128][][][][]complex64
+	M5  map[string]basicTypes
+	M6  map[basicTypes]int
+	Sl1 []string
+	Sl2 [][][][]complex128
+	Sl3 []basicTypes
+	Sl4 []byte
+}
+
+func TestMustAnythingSupportedTypesExceptPointers(t *testing.T) {
+	f := func(x supportedTypesExceptPointers) bool {
+		y := MustAnything(x)
+		return DeepEqual(x, y)
+	}
+	if err := quick.Check(f, &quick.Config{
+		MaxCount: 1000,
+	}); err != nil {
+		t.Error(err)
+	}
 }
