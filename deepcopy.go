@@ -36,6 +36,10 @@ func init() {
 	}
 }
 
+func Register(kind Kind, copier copier) {
+	copiers[kind] = copier
+}
+
 // MustAnything does a deep copy and panics on any errors.
 func MustAnything(x interface{}) interface{} {
 	dc, err := Anything(x)
@@ -132,7 +136,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 
 	if v.IsNil() {
 		t := TypeOf(x)
-		return Zero(t).Interface(),nil
+		return Zero(t).Interface(), nil
 	}
 
 	addr := v.Pointer()
@@ -142,7 +146,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	t := TypeOf(x)
 	dc := New(t.Elem())
 	ptrs[addr] = dc.Interface()
-	
+
 	item, err := _anything(v.Elem().Interface(), ptrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
@@ -151,7 +155,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	if iv.IsValid() {
 		dc.Elem().Set(ValueOf(item))
 	}
-	
+
 	return dc.Interface(), nil
 }
 
