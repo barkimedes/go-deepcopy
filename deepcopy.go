@@ -74,6 +74,18 @@ func Anything(x interface{}) (interface{}, error) {
 
 func _anything(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 	v := ValueOf(x)
+
+	if cloner := v.MethodByName("Clone"); cloner.IsValid() {
+		switch cloner.Type().NumIn() {
+		case 0:
+			return cloner.Call([]Value{})[0].Interface(), nil
+		case 1:
+			return cloner.Call([]Value{ValueOf(ptrs)})[0].Interface(), nil
+		default:
+			return nil, fmt.Errorf("clone method for %v has too many arguments", x)
+		}
+	}
+
 	if !v.IsValid() {
 		return x, nil
 	}
