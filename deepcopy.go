@@ -74,6 +74,9 @@ func Anything(x interface{}) (interface{}, error) {
 
 func _anything(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 	v := ValueOf(x)
+	if !v.IsValid() {
+		return x, nil
+	}
 
 	if cloner := v.MethodByName("Clone"); cloner.IsValid() {
 		switch cloner.Type().NumIn() {
@@ -86,9 +89,6 @@ func _anything(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error)
 		}
 	}
 
-	if !v.IsValid() {
-		return x, nil
-	}
 	if c, ok := copiers[v.Kind()]; ok {
 		return c(x, ptrs)
 	}
@@ -187,7 +187,9 @@ func _struct(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy the field %v in the struct %#v: %v", t.Field(i).Name, x, err)
 		}
-		dc.Elem().Field(i).Set(ValueOf(item))
+    if val := ValueOf(item); val.IsValid() {
+      dc.Elem().Field(i).Set(val)
+    }
 	}
 	return dc.Elem().Interface(), nil
 }
