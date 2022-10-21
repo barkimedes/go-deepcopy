@@ -36,6 +36,10 @@ func init() {
 	}
 }
 
+func Register(kind Kind, copier copier) {
+	copiers[kind] = copier
+}
+
 // MustAnything does a deep copy and panics on any errors.
 func MustAnything(x interface{}) interface{} {
 	dc, err := Anything(x)
@@ -73,6 +77,18 @@ func _anything(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error)
 	if !v.IsValid() {
 		return x, nil
 	}
+
+	if cloner := v.MethodByName("Clone"); cloner.IsValid() {
+		switch cloner.Type().NumIn() {
+		case 0:
+			return cloner.Call([]Value{})[0].Interface(), nil
+		case 1:
+			return cloner.Call([]Value{ValueOf(ptrs)})[0].Interface(), nil
+		default:
+			return nil, fmt.Errorf("clone method for %v has too many arguments", x)
+		}
+	}
+
 	if c, ok := copiers[v.Kind()]; ok {
 		return c(x, ptrs)
 	}
@@ -132,7 +148,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 
 	if v.IsNil() {
 		t := TypeOf(x)
-		return Zero(t).Interface(),nil
+		return Zero(t).Interface(), nil
 	}
 
 	addr := v.Pointer()
@@ -142,7 +158,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	t := TypeOf(x)
 	dc := New(t.Elem())
 	ptrs[addr] = dc.Interface()
-	
+
 	item, err := _anything(v.Elem().Interface(), ptrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
@@ -151,7 +167,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	if iv.IsValid() {
 		dc.Elem().Set(ValueOf(item))
 	}
-	
+
 	return dc.Interface(), nil
 }
 
@@ -171,7 +187,9 @@ func _struct(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy the field %v in the struct %#v: %v", t.Field(i).Name, x, err)
 		}
-		dc.Elem().Field(i).Set(ValueOf(item))
+    if val := ValueOf(item); val.IsValid() {
+      dc.Elem().Field(i).Set(val)
+    }
 	}
 	return dc.Elem().Interface(), nil
 }
