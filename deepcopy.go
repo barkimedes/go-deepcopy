@@ -51,7 +51,10 @@ func MustAnything(x interface{}) interface{} {
 
 // RegisterImmutableType registers a type as immutable. This means that when a deep copy is made,
 // if the type of the value being copied is the same as the type passed in, the value will not be
-// copied. Instead, the original value will be used. This is useful for types that are immutable
+// copied. Instead, the original value will be used. This is useful for types that are immutable.
+//
+// It is intended to be called at init time.
+
 func RegisterImmutableType(t Type) {
 	immutableTypes[t] = struct{}{}
 }
