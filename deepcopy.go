@@ -9,6 +9,8 @@ type copier func(interface{}, map[uintptr]interface{}) (interface{}, error)
 
 var copiers map[Kind]copier
 
+var immutableTypes map[Type]struct{}
+
 func init() {
 	copiers = map[Kind]copier{
 		Bool:       _primitive,
@@ -34,6 +36,8 @@ func init() {
 		String:     _primitive,
 		Struct:     _struct,
 	}
+
+	immutableTypes = map[Type]struct{}{}
 }
 
 // MustAnything does a deep copy and panics on any errors.
@@ -43,6 +47,13 @@ func MustAnything(x interface{}) interface{} {
 		panic(err)
 	}
 	return dc
+}
+
+// RegisterImmutableType registers a type as immutable. This means that when a deep copy is made,
+// if the type of the value being copied is the same as the type passed in, the value will not be
+// copied. Instead, the original value will be used. This is useful for types that are immutable
+func RegisterImmutableType(t Type) {
+	immutableTypes[t] = struct{}{}
 }
 
 // Primitive makes a copy of a primitive type...which just means it returns the input value.
@@ -132,7 +143,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 
 	if v.IsNil() {
 		t := TypeOf(x)
-		return Zero(t).Interface(),nil
+		return Zero(t).Interface(), nil
 	}
 
 	addr := v.Pointer()
@@ -142,7 +153,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	t := TypeOf(x)
 	dc := New(t.Elem())
 	ptrs[addr] = dc.Interface()
-	
+
 	item, err := _anything(v.Elem().Interface(), ptrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
@@ -151,7 +162,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	if iv.IsValid() {
 		dc.Elem().Set(ValueOf(item))
 	}
-	
+
 	return dc.Interface(), nil
 }
 
@@ -161,6 +172,10 @@ func _struct(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("must pass a value with kind of Struct; got %v", v.Kind())
 	}
 	t := TypeOf(x)
+	if _, ok := immutableTypes[t]; ok {
+		// This is an immutable type, so we can just return it.
+		return x, nil
+	}
 	dc := New(t)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)

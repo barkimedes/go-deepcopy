@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "reflect"
 	"testing"
+	"time"
 )
 
 func ExampleAnything() {
@@ -161,8 +162,8 @@ func TestTwoNils(t *testing.T) {
 		B int
 	}
 	type FooBar struct {
-		Foo *Foo
-		Bar *Bar
+		Foo  *Foo
+		Bar  *Bar
 		Foo2 *Foo
 		Bar2 *Bar
 	}
@@ -178,4 +179,30 @@ func TestTwoNils(t *testing.T) {
 		t.Errorf("expect %v == %v; ", src, dst)
 	}
 
+}
+
+func TestImmutableTypes(t *testing.T) {
+	type Foo struct {
+		Time    time.Time
+		TimePtr *time.Time
+	}
+
+	now := time.Now()
+
+	src := &Foo{
+		Time:    time.Now(),
+		TimePtr: &now,
+	}
+
+	RegisterImmutableType(TypeOf(time.Time{}))
+
+	dst := MustAnything(src)
+
+	if src.TimePtr == dst.(*Foo).TimePtr {
+		t.Error("expect pointers to different time structs")
+	}
+
+	if !DeepEqual(src, dst) {
+		t.Errorf("expect %v == %v; ", src, dst)
+	}
 }
