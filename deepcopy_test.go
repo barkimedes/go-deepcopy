@@ -47,8 +47,8 @@ type Foo struct {
 
 func ExampleMap() {
 	x := map[string]*Foo{
-		"foo": &Foo{Bar: 1},
-		"bar": &Foo{Bar: 2},
+		"foo": {Foo: &Foo{Bar: 1}, Bar: 1},
+		"bar": {Foo: &Foo{Bar: 2}, Bar: 2},
 	}
 	y := MustAnything(x).(map[string]*Foo)
 	for _, k := range []string{"foo", "bar"} { // to ensure consistent order
