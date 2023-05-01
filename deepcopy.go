@@ -55,6 +55,12 @@ func _primitive(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error
 	return x, nil
 }
 
+// for backward compatibility.
+func Anything(x interface{}) (interface{}, error) {
+	ptrs := make(map[uintptr]interface{})
+	return _anything(x, ptrs)
+}
+
 // Anything makes a deep copy of whatever gets passed in. It handles pretty much all known Go types
 // (with the exception of channels, unsafe pointers, and functions). Note that this is a truly deep
 // copy that will work it's way all the way to the leaves of the types--any pointer will be copied,
@@ -63,12 +69,22 @@ func _primitive(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error
 // If we run into that pointer again, we don't make another deep copy of it; we just replace it with
 // the copy we've already made. This also ensures that the cloned result is functionally equivalent
 // to the original value.
-func Anything(x interface{}) (interface{}, error) {
+func AnythingType[T any](x T) (T, error) {
 	ptrs := make(map[uintptr]interface{})
-	return _anything(x, ptrs)
+	cloned, err := _anything(x, ptrs)
+	var def T
+	if err != nil {
+		return def, err
+	}
+
+	if val, ok := cloned.(T); !ok {
+		return def, fmt.Errorf("cannot convert to resulting type")
+	} else {
+		return val, nil
+	}
 }
 
-func _anything(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
+func _anything[T any](x T, ptrs map[uintptr]interface{}) (any, error) {
 	v := ValueOf(x)
 	if !v.IsValid() {
 		return x, nil
@@ -132,7 +148,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 
 	if v.IsNil() {
 		t := TypeOf(x)
-		return Zero(t).Interface(),nil
+		return Zero(t).Interface(), nil
 	}
 
 	addr := v.Pointer()
@@ -142,7 +158,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	t := TypeOf(x)
 	dc := New(t.Elem())
 	ptrs[addr] = dc.Interface()
-	
+
 	item, err := _anything(v.Elem().Interface(), ptrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
@@ -151,7 +167,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	if iv.IsValid() {
 		dc.Elem().Set(ValueOf(item))
 	}
-	
+
 	return dc.Interface(), nil
 }
 

@@ -45,9 +45,10 @@ type Foo struct {
 }
 
 func ExampleMap() {
+	foo := Foo{}
 	x := map[string]*Foo{
-		"foo": &Foo{Bar: 1},
-		"bar": &Foo{Bar: 2},
+		"foo": &Foo{Foo: &foo, Bar: 1},
+		"bar": &Foo{Foo: &foo, Bar: 2},
 	}
 	y := MustAnything(x).(map[string]*Foo)
 	for _, k := range []string{"foo", "bar"} { // to ensure consistent order
@@ -161,8 +162,8 @@ func TestTwoNils(t *testing.T) {
 		B int
 	}
 	type FooBar struct {
-		Foo *Foo
-		Bar *Bar
+		Foo  *Foo
+		Bar  *Bar
 		Foo2 *Foo
 		Bar2 *Bar
 	}
