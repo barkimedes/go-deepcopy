@@ -123,6 +123,54 @@ func TestUnsupportedKindPanicsOnMust(t *testing.T) {
 	MustAnything(x)
 }
 
+type InterfaceA interface {
+}
+
+type StructA struct {
+	A InterfaceA
+	B InterfaceA
+}
+
+func TestStructNilMember(t *testing.T) {
+	testStruct := StructA{
+		B: "b",
+	}
+
+	copied, err := Anything(testStruct)
+	if err != nil {
+		t.Errorf("must not have error")
+	}
+
+	if copied != testStruct {
+		t.Errorf("must be equal")
+	}
+}
+
+type StructB struct {
+	a string
+}
+
+func ExampleStructUnexportedMember() {
+	testStruct := StructB{
+		a: "a",
+	}
+
+	_, err := Anything(testStruct)
+	fmt.Println(err)
+	// Output:
+	// failed to copy the field a in the struct deepcopy.StructB{a:"a"}: field is unexported
+}
+
+func ExampleArray() {
+	arr := []any{"a", 1, nil, StructA{B: "b"}}
+	cloned, err := Anything(arr)
+	fmt.Println(err)
+	fmt.Println(cloned)
+	// Output:
+	// <nil>
+	// [a 1 <nil> {<nil> b}]
+}
+
 func TestMismatchedTypesFail(t *testing.T) {
 	tests := []struct {
 		input interface{}

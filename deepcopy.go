@@ -2,6 +2,7 @@ package deepcopy
 
 import (
 	"fmt"
+	"reflect"
 	. "reflect"
 )
 
@@ -176,17 +177,27 @@ func _struct(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 	if v.Kind() != Struct {
 		return nil, fmt.Errorf("must pass a value with kind of Struct; got %v", v.Kind())
 	}
+
 	t := TypeOf(x)
 	dc := New(t)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if f.PkgPath != "" {
-			continue
+		if !f.IsExported() {
+			return nil, fmt.Errorf("failed to copy the field %v in the struct %#v: field is unexported", t.Field(i).Name, x)
 		}
+
 		item, err := _anything(v.Field(i).Interface(), ptrs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy the field %v in the struct %#v: %v", t.Field(i).Name, x, err)
 		}
+
+		field := v.Field(i)
+		if field.Kind() == reflect.Interface || field.Kind() == reflect.Pointer {
+			if field.IsNil() {
+				continue
+			}
+		}
+
 		dc.Elem().Field(i).Set(ValueOf(item))
 	}
 	return dc.Elem().Interface(), nil
@@ -205,6 +216,7 @@ func _array(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to clone array item at index %v: %v", i, err)
 		}
+
 		dc.Index(i).Set(ValueOf(item))
 	}
 	return dc.Interface(), nil
