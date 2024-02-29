@@ -2,6 +2,8 @@ package deepcopy
 
 import (
 	"fmt"
+	"unsafe"
+
 	. "reflect"
 )
 
@@ -132,7 +134,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 
 	if v.IsNil() {
 		t := TypeOf(x)
-		return Zero(t).Interface(),nil
+		return Zero(t).Interface(), nil
 	}
 
 	addr := v.Pointer()
@@ -142,7 +144,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	t := TypeOf(x)
 	dc := New(t.Elem())
 	ptrs[addr] = dc.Interface()
-	
+
 	item, err := _anything(v.Elem().Interface(), ptrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy the value under the pointer %v: %v", v, err)
@@ -151,7 +153,7 @@ func _pointer(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) 
 	if iv.IsValid() {
 		dc.Elem().Set(ValueOf(item))
 	}
-	
+
 	return dc.Interface(), nil
 }
 
@@ -164,14 +166,20 @@ func _struct(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 	dc := New(t)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
+		vf := v.Field(i)
 		if f.PkgPath != "" {
-			continue
+			// Field is not exported, trick the reflect package on thinking it is.
+			overwriteFlagsForDeepCopy(&vf)
 		}
-		item, err := _anything(v.Field(i).Interface(), ptrs)
+		item, err := _anything(vf.Interface(), ptrs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy the field %v in the struct %#v: %v", t.Field(i).Name, x, err)
 		}
-		dc.Elem().Field(i).Set(ValueOf(item))
+
+		dstFieldValue := dc.Elem().Field(i)
+		overwriteFlagsForDeepCopy(&dstFieldValue)
+
+		dstFieldValue.Set(ValueOf(item))
 	}
 	return dc.Elem().Interface(), nil
 }
@@ -192,4 +200,24 @@ func _array(x interface{}, ptrs map[uintptr]interface{}) (interface{}, error) {
 		dc.Index(i).Set(ValueOf(item))
 	}
 	return dc.Interface(), nil
+}
+
+const (
+	// At the time of implementation, a reflect.Value contains 2 pointer sized
+	// fields plus the uintptr flags field.
+	flagsOffset = unsafe.Sizeof(int(0)) * 2
+)
+
+// overwriteFlagsForDeepCopy overwrite the flags in the given reflect.Value so
+// that the reflect package will allows us to set unexported fields which, in
+// turn, allows for deep copying unexported fields.
+//
+// HERE BE DRAGONS. This is very brittle and might change under us at any point
+// in time. Be warned.
+func overwriteFlagsForDeepCopy(v *Value) {
+	vPtr := unsafe.Pointer(v)
+
+	flagPtr := (*uintptr)(unsafe.Pointer(uintptr(vPtr) + flagsOffset))
+
+	*flagPtr = *flagPtr & ^uintptr(1<<5|1<<6)
 }
