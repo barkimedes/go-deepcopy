@@ -57,10 +57,10 @@ func ExampleMap() {
 	}
 	// Output:
 	// x["foo"] = y["foo"]: false
-	// x["foo"].Foo = y["foo"].Foo: false
+	// x["foo"].Foo = y["foo"].Foo: true
 	// x["foo"].Bar = y["foo"].Bar: true
 	// x["bar"] = y["bar"]: false
-	// x["bar"].Foo = y["bar"].Foo: false
+	// x["bar"].Foo = y["bar"].Foo: true
 	// x["bar"].Bar = y["bar"].Bar: true
 }
 
@@ -161,8 +161,8 @@ func TestTwoNils(t *testing.T) {
 		B int
 	}
 	type FooBar struct {
-		Foo *Foo
-		Bar *Bar
+		Foo  *Foo
+		Bar  *Bar
 		Foo2 *Foo
 		Bar2 *Bar
 	}
@@ -178,4 +178,18 @@ func TestTwoNils(t *testing.T) {
 		t.Errorf("expect %v == %v; ", src, dst)
 	}
 
+}
+
+func TestUnexported(t *testing.T) {
+	type Foo struct {
+		a int
+	}
+
+	src := Foo{2}
+
+	dst := MustAnything(src)
+
+	if !DeepEqual(src, dst) {
+		t.Errorf("expect %v == %v; ", src, dst)
+	}
 }
